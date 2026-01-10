@@ -49,5 +49,6 @@ export interface LeadStats {
   pending: number;
   qualified: number;
   disqualified: number;
+  reviewing: number;
   avgScore: number;
 }

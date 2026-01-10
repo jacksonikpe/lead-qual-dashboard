@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLeadStore } from "../store/leadStore";
+import { StatsCard } from "./statsCard";
 import { LeadCard } from "./LeadCard";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -7,13 +8,14 @@ import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   Users,
   CheckCircle2,
+  XCircle,
   Clock,
   Search,
   Sparkles,
   Loader2,
+  AlertCircle, // ADD THIS IMPORT
 } from "lucide-react";
 import { qualifyLeadsBatch } from "../services/aiService";
-import { StatsCard } from "./statsCard";
 import { Card } from "./ui/card";
 
 export function Dashboard() {
@@ -101,8 +103,8 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
+        {/* Stats - UPDATE THIS GRID */}
+        <div className="grid gap-4 md:grid-cols-5">
           <StatsCard
             title="Total Leads"
             value={stats.total}
@@ -122,12 +124,44 @@ export function Dashboard() {
             description="Ready to contact"
           />
           <StatsCard
+            title="Needs Review"
+            value={stats.reviewing}
+            icon={AlertCircle}
+            description="Moderate potential"
+          />
+          <StatsCard
+            title="Disqualified"
+            value={stats.disqualified}
+            icon={XCircle}
+            description="Not worth pursuing"
+          />
+        </div>
+
+        {/* Secondary Stats Row - OPTIONAL BUT NICE */}
+        {/* <div className="grid gap-4 md:grid-cols-3">
+          <StatsCard
             title="Avg. Score"
             value={stats.avgScore.toFixed(0)}
             icon={Sparkles}
             description="Out of 100"
           />
-        </div>
+          <StatsCard
+            title="Conversion Rate"
+            value={
+              stats.total > 0
+                ? `${((stats.qualified / stats.total) * 100).toFixed(1)}%`
+                : "0%"
+            }
+            icon={CheckCircle2}
+            description="Qualified / Total"
+          />
+          <StatsCard
+            title="Action Needed"
+            value={stats.pending + stats.reviewing}
+            icon={AlertCircle}
+            description="Pending + Reviewing"
+          />
+        </div> */}
 
         {/* Filters */}
         <div className="flex gap-4 items-center">
@@ -143,16 +177,13 @@ export function Dashboard() {
 
           <Tabs
             value={filterStatus}
-            onValueChange={(v) =>
-              setFilterStatus(
-                v as "all" | "pending" | "qualified" | "disqualified"
-              )
-            }
+            onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}
           >
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="pending">Pending</TabsTrigger>
               <TabsTrigger value="qualified">Qualified</TabsTrigger>
+              <TabsTrigger value="reviewing">Reviewing</TabsTrigger>
               <TabsTrigger value="disqualified">Disqualified</TabsTrigger>
             </TabsList>
           </Tabs>

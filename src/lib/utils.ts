@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { Lead, LeadStats } from "./types";
+import type { Lead, LeadStats, QualificationStatus } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -8,20 +8,29 @@ export function cn(...inputs: ClassValue[]) {
 
 export function calculateStats(leads: Lead[]): LeadStats {
   const total = leads.length;
+
+  // Pending = no AI qualification AND no manual override
   const pending = leads.filter(
     (l) => !l.qualification && !l.manualOverride
   ).length;
 
+  // Get effective status (manual override takes precedence)
+  const getEffectiveStatus = (lead: Lead): QualificationStatus | null => {
+    if (lead.manualOverride) return lead.manualOverride.status;
+    if (lead.qualification) return lead.qualification.status;
+    return null;
+  };
+
   const qualified = leads.filter(
-    (l) =>
-      l.manualOverride?.status === "qualified" ||
-      (!l.manualOverride && l.qualification?.status === "qualified")
+    (l) => getEffectiveStatus(l) === "qualified"
   ).length;
 
   const disqualified = leads.filter(
-    (l) =>
-      l.manualOverride?.status === "disqualified" ||
-      (!l.manualOverride && l.qualification?.status === "disqualified")
+    (l) => getEffectiveStatus(l) === "disqualified"
+  ).length;
+
+  const reviewing = leads.filter(
+    (l) => getEffectiveStatus(l) === "reviewing"
   ).length;
 
   const scoredLeads = leads.filter((l) => l.qualification?.score);
@@ -31,7 +40,7 @@ export function calculateStats(leads: Lead[]): LeadStats {
         scoredLeads.length
       : 0;
 
-  return { total, pending, qualified, disqualified, avgScore };
+  return { total, pending, qualified, disqualified, reviewing, avgScore };
 }
 
 export function formatTimestamp(date: Date): string {

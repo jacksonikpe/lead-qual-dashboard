@@ -44,6 +44,7 @@ export const useLeadStore = create<LeadStore>()(
         pending: 0,
         qualified: 0,
         disqualified: 0,
+        reviewing: 0,
         avgScore: 0,
       },
       filterStatus: "all",
