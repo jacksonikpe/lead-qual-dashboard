@@ -1,12 +1,12 @@
-import axios, { AxiosError } from 'axios';
-import type{ Lead } from '../lib/types';
+import axios from "axios";
+import type { Lead } from "../lib/types";
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const API_URL = 'https://api.openai.com/v1/chat/completions';
+const API_URL = "https://api.openai.com/v1/chat/completions";
 
 interface QualificationResponse {
   score: number;
-  status: 'qualified' | 'disqualified' | 'reviewing';
+  status: "qualified" | "disqualified" | "reviewing";
   reasoning: string;
   signals: {
     hasBudget: boolean;
@@ -68,108 +68,108 @@ STATUS RULES:
 - "reviewing": score 40-69`;
 
 function buildPrompt(lead: Lead): string {
-  return QUALIFICATION_PROMPT
-    .replace('{source}', lead.source)
-    .replace('{name}', lead.rawData.name || 'Not provided')
-    .replace('{company}', lead.rawData.company || 'Not provided')
-    .replace('{email}', lead.rawData.email || 'Not provided')
-    .replace('{message}', lead.rawData.message);
+  return QUALIFICATION_PROMPT.replace("{source}", lead.source)
+    .replace("{name}", lead.rawData.name || "Not provided")
+    .replace("{company}", lead.rawData.company || "Not provided")
+    .replace("{email}", lead.rawData.email || "Not provided")
+    .replace("{message}", lead.rawData.message);
 }
 
-export async function qualifyLead(lead: Lead): Promise<Lead['qualification']> {
+// Add this helper function at the top
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt === maxRetries - 1) throw error;
+
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Retry attempt ${attempt + 1} after ${delay}ms`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
+// Update qualifyLead to use retry logic
+export async function qualifyLead(lead: Lead): Promise<Lead["qualification"]> {
   if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key not configured');
+    throw new Error("OpenAI API key not configured");
   }
 
   const prompt = buildPrompt(lead);
 
-  try {
+  return retryWithBackoff(async () => {
     const response = await axios.post(
       API_URL,
       {
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
           {
-            role: 'system',
-            content: 'You are a sales lead qualification assistant. Always respond with valid JSON only.',
+            role: "system",
+            content:
+              "You are a sales lead qualification assistant. Always respond with valid JSON only.",
           },
           {
-            role: 'user',
+            role: "user",
             content: prompt,
           },
         ],
-        temperature: 0.3, // Lower = more consistent
+        temperature: 0.3,
         max_tokens: 500,
       },
       {
         headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
         },
-        timeout: 30000, // 30 second timeout
+        timeout: 30000,
       }
     );
 
     const content = response.data.choices[0]?.message?.content;
     if (!content) {
-      throw new Error('Empty response from AI');
+      throw new Error("Empty response from AI");
     }
 
-    // Parse JSON response
     const parsed: QualificationResponse = JSON.parse(content);
 
-    // Validate required fields
-    if (typeof parsed.score !== 'number' || !parsed.status || !parsed.reasoning) {
-      throw new Error('Invalid AI response structure');
+    if (
+      typeof parsed.score !== "number" ||
+      !parsed.status ||
+      !parsed.reasoning
+    ) {
+      throw new Error("Invalid AI response structure");
     }
 
     return parsed;
-
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError;
-      
-      if (axiosError.response?.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again in a moment.');
-      }
-      
-      if (axiosError.response?.status === 401) {
-        throw new Error('Invalid API key. Please check your configuration.');
-      }
-      
-      if (axiosError.code === 'ECONNABORTED') {
-        throw new Error('Request timeout. Please check your connection.');
-      }
-    }
-
-    if (error instanceof SyntaxError) {
-      throw new Error('AI returned invalid JSON. Please try again.');
-    }
-
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Qualification failed: ${errorMessage}`);
-  }
+  });
 }
 
 // Batch processing with rate limiting
 export async function qualifyLeadsBatch(
   leads: Lead[],
   onProgress?: (processed: number, total: number) => void
-): Promise<Map<string, Lead['qualification']>> {
-  const results = new Map<string, Lead['qualification']>();
-  
+): Promise<Map<string, Lead["qualification"]>> {
+  const results = new Map<string, Lead["qualification"]>();
+
   for (let i = 0; i < leads.length; i++) {
     try {
       const qualification = await qualifyLead(leads[i]);
       results.set(leads[i].id, qualification);
-      
+
       if (onProgress) {
         onProgress(i + 1, leads.length);
       }
 
       // Rate limiting: wait 1 second between requests
       if (i < leads.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     } catch (error) {
       console.error(`Failed to qualify lead ${leads[i].id}:`, error);
