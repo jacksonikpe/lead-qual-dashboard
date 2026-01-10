@@ -22,6 +22,9 @@ interface LeadStore {
   updateNotes: (leadId: string, notes: string) => void;
   deleteLead: (leadId: string) => void;
 
+  // NEW: Force stats recalculation
+  recalculateStats: () => void;
+
   // Filters & Search
   filterStatus: "all" | "pending" | "qualified" | "disqualified";
   setFilterStatus: (status: LeadStore["filterStatus"]) => void;
@@ -58,7 +61,15 @@ export const useLeadStore = create<LeadStore>()(
             leads: processedLeads,
             stats: calculateStats(processedLeads),
           });
+        } else {
+          // IMPORTANT: Recalculate stats on reload
+          get().recalculateStats();
         }
+      },
+
+      recalculateStats: () => {
+        const { leads } = get();
+        set({ stats: calculateStats(leads) });
       },
 
       updateLeadQualification: (leadId, qualification) => {
@@ -151,6 +162,13 @@ export const useLeadStore = create<LeadStore>()(
         leads: state.leads,
         // Don't persist UI state like filters
       }),
+      // NEW: Hook into rehydration
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Recalculate stats after localStorage loads
+          state.stats = calculateStats(state.leads);
+        }
+      },
     }
   )
 );
