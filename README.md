@@ -2,13 +2,13 @@
 
 > **A transparent, auditable system for automating sales lead triage**
 
-Small sales teams waste 10-15 hours/week manually reviewing inbound leads from emails, forms, and messages. This dashboard automates that process using AI—not as a black-box decision-maker, but as a transparent assistant that surfaces buyer signals and explains its reasoning.
+Small sales teams waste 10-15 hours/week manually reviewing inbound leads from emails, forms, and messages. This dashboard automates that process using AI, not as a black-box decision-maker, but as a transparent assistant that surfaces buyer signals and explains its reasoning.
 
 ![Dashboard Preview](./docs/screenshots/dashboard.png)
 
 ## 🎯 Problem Solved
 
-**Before**: Sales reps manually read every lead, tag them, score them, and route them—a 6-step process prone to human error and inconsistency.
+**Before**: Sales reps manually read every lead, tag them, score them, and route them. A 6-step process prone to human error and inconsistency.
 
 **After**: AI pre-qualifies leads automatically, reducing the workflow to 2 steps: review AI suggestion → take action.
 
